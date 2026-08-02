@@ -1,0 +1,15 @@
+document = { SOI ~ line* ~ EOI }
+
+line = _{ profile_line | root_line | layer_line | dependency_line | blank_line }
+profile_line = { "profile" ~ identifier ~ "@" ~ version ~ line_end }
+root_line = { "root" ~ quoted ~ line_end }
+layer_line = { "layer" ~ identifier ~ line_end }
+dependency_line = { "depends" ~ identifier ~ "on" ~ identifier ~ line_end }
+blank_line = { NEWLINE }
+
+identifier = @{ (ASCII_ALPHA | "_" ) ~ (ASCII_ALPHANUMERIC | "_" | "-" )* }
+version = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
+quoted = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+line_end = _{ ";"? ~ (NEWLINE | &EOI) }
+NEWLINE = _{ "\r\n" | "\n" }
+WHITESPACE = _{ " " | "\t" }

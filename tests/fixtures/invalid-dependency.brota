@@ -1,0 +1,7 @@
+profile feature-clean@0.1
+root "src/app/features/{feature}"
+layer domain
+layer application
+layer infrastructure
+layer presentation
+depends domain on infrastructure
