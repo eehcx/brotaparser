@@ -1,0 +1,79 @@
+catalog_version = "0.1.0"
+retrieved_at = "2026-08-02"
+
+[[sources]]
+id = "ddd-reference-2015"
+title = "Domain-Driven Design Reference"
+author = "Eric Evans"
+classification = "primary"
+url = "https://www.domainlanguage.com/wp-content/uploads/2016/05/DDD_Reference_2015-03.pdf"
+
+[[sources]]
+id = "clean-architecture-2012"
+title = "The Clean Architecture"
+author = "Robert C. Martin"
+classification = "primary"
+url = "https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html"
+
+[[sources]]
+id = "hexagonal-architecture"
+title = "Hexagonal Architecture"
+author = "Alistair Cockburn"
+classification = "primary"
+url = "https://alistair.cockburn.us/hexagonal-architecture"
+
+[[sources]]
+id = "vertical-slice-architecture"
+title = "Vertical Slice Architecture"
+author = "Jimmy Bogard"
+classification = "primary"
+url = "https://www.jimmybogard.com/vertical-slice-architecture/"
+
+[[sources]]
+id = "feature-sliced-design"
+title = "Feature-Sliced Design Documentation"
+classification = "official-documentation"
+version = "2.1"
+url = "https://feature-sliced.design/docs/get-started/overview"
+
+[[sources]]
+id = "angular-style-guide"
+title = "Angular Style Guide"
+classification = "official-documentation"
+url = "https://angular.dev/style-guide"
+
+[[sources]]
+id = "nx-module-boundaries"
+title = "Enforce Module Boundaries"
+classification = "official-documentation"
+url = "https://nx.dev/docs/features/enforce-module-boundaries"
+
+[[sources]]
+id = "dependency-cruiser-rules"
+title = "dependency-cruiser Rules Reference"
+classification = "official-repository"
+url = "https://github.com/sverweij/dependency-cruiser/blob/main/doc/rules-reference.md"
+
+[[sources]]
+id = "sheriff"
+title = "Sheriff"
+classification = "official-repository"
+url = "https://github.com/softarc-consulting/sheriff"
+
+[[sources]]
+id = "steiger"
+title = "Steiger"
+classification = "official-repository"
+url = "https://github.com/feature-sliced/steiger"
+
+[[sources]]
+id = "archunit"
+title = "ArchUnit User Guide"
+classification = "official-documentation"
+url = "https://www.archunit.org/userguide/html/000_Index.html"
+
+[[sources]]
+id = "architecture-decision-records"
+title = "Architecture Decision Records"
+classification = "community-reference"
+url = "https://adr.github.io/"

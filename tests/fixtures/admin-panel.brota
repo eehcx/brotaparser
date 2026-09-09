@@ -1,0 +1,39 @@
+contract admin-panel {
+  language "0.1"
+  profile angular version "0.1"
+  root "src"
+
+  area app
+  area shared
+  area catalog
+  area orders
+  area checkout
+  area payments
+
+  allow catalog -> shared
+  allow orders -> shared
+  allow orders -> catalog
+  allow checkout -> orders
+  allow checkout -> payments
+
+  forbid catalog -> payments
+  forbid shared -> catalog
+
+  path "src/app/**" owns area app
+  path "src/app/shared/**" owns area shared
+  path "src/app/catalog/**" owns area catalog
+  path "src/app/orders/**" owns area orders
+  path "src/app/checkout/**" owns area checkout
+  path "src/app/payments/**" owns area payments
+
+  require directory "src/app/catalog" in area catalog
+  require directory "src/app/orders" in area orders
+  require file "src/app/catalog/index.ts" in area catalog
+  require public-api "src/app/catalog/index.ts" in area catalog
+  require configuration "src/app/app.config.ts" in area app
+
+  exception allow orders -> catalog {
+    through public-api
+    reason "Orders consume catalog data through the catalog public API"
+  }
+}

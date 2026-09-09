@@ -1,0 +1,27 @@
+{
+  "version": {
+    "language": "0.1",
+    "schema": "architecture-contract@0.1"
+  },
+  "name": "admin-panel",
+  "profile": {"name": "angular", "version": "0.1"},
+  "root": "src",
+  "dimensions": {
+    "decomposition": "feature-areas",
+    "internal_structure": "angular-style-guide",
+    "dependency_policy": "framework-unspecified",
+    "visibility": "framework-unspecified"
+  },
+  "symbols": [],
+  "dependency_rules": [],
+  "exceptions": [],
+  "path_rules": [],
+  "required_artifacts": [],
+  "rules": [],
+  "derived_from": {
+    "name": "angular",
+    "version": "0.1",
+    "schema": "architecture-blueprint@0.1"
+  },
+  "forbidden_paths": ["src/app/domain/**"]
+}

@@ -1,0 +1,28 @@
+{
+  "name": "brotaparser-architecture-catalog",
+  "version": "0.1.0",
+  "generated": "2026-08-02",
+  "files": [
+    "README.md",
+    "adr/0001-versioned-architecture-profiles.md",
+    "adr/0003-angular-baseline-profile.md",
+    "architecture-styles/angular-feature-organization.md",
+    "architecture-styles/clean-architecture.md",
+    "architecture-styles/domain-driven-design.md",
+    "architecture-styles/feature-sliced-design.md",
+    "architecture-styles/ports-and-adapters.md",
+    "architecture-styles/vertical-slice-architecture.md",
+    "concepts/boundaries.md",
+    "concepts/compiler-model.md",
+    "concepts/dependencies.md",
+    "concepts/diagnostics.md",
+    "concepts/glossary.md",
+    "concepts/paths.md",
+    "cli.md",
+    "schema/architecture-contract-0.1.schema.json",
+    "profiles/angular/0.1.md",
+    "profiles/angular/README.md",
+    "profiles/angular/examples.md",
+    "sources/registry.toml"
+  ]
+}

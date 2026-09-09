@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "architecture-blueprint-0.1.schema.json",
+  "title": "BrotaParser Architecture Blueprint",
+  "description": "Prescriptive, versioned architecture instructions consumed by project generators.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "profile",
+    "provenance",
+    "dimensions",
+    "layout",
+    "artifacts",
+    "dependency_rules",
+    "exceptions",
+    "path_rules",
+    "required_artifacts",
+    "forbidden_paths",
+    "rules"
+  ],
+  "properties": {
+    "version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema"],
+      "properties": {"schema": {"const": "architecture-blueprint@0.1"}}
+    },
+    "profile": {"$ref": "#/$defs/profileVersion"},
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sources", "verification"],
+      "properties": {
+        "sources": {"type": "array", "items": {"type": "string"}},
+        "verification": {"$ref": "#/$defs/verification"}
+      }
+    },
+    "dimensions": {"$ref": "#/$defs/dimensions"},
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "areas"],
+      "properties": {
+        "root": {"type": "string", "minLength": 1},
+        "areas": {"type": "array", "items": {"$ref": "#/$defs/area"}}
+      }
+    },
+    "artifacts": {"type": "array", "items": {"$ref": "#/$defs/artifactIdentity"}},
+    "dependency_rules": {"type": "array", "items": {"$ref": "#/$defs/dependencyRule"}},
+    "exceptions": {"type": "array", "items": {"$ref": "#/$defs/exceptionRule"}},
+    "path_rules": {"type": "array", "items": {"$ref": "#/$defs/pathRule"}},
+    "required_artifacts": {"type": "array", "items": {"$ref": "#/$defs/requiredArtifact"}},
+    "forbidden_paths": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "rules": {"type": "array", "items": {"$ref": "#/$defs/ruleMetadata"}}
+  },
+  "$defs": {
+    "profileVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1}
+      }
+    },
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decomposition", "internal_structure", "dependency_policy", "visibility"],
+      "properties": {
+        "decomposition": {"type": "string"},
+        "internal_structure": {"type": "string"},
+        "dependency_policy": {"type": "string"},
+        "visibility": {"type": "string"}
+      }
+    },
+    "verification": {"enum": ["deterministic", "heuristic", "human-review"]},
+    "area": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "kind"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "minLength": 1}
+      }
+    },
+    "templateRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["renderer", "key"],
+      "properties": {
+        "renderer": {"type": "string", "minLength": 1},
+        "key": {"type": "string", "minLength": 1}
+      }
+    },
+    "artifactIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "path", "owner", "template_ref"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "kind": {"$ref": "#/$defs/artifactKind"},
+        "path": {"type": "string", "minLength": 1},
+        "owner": {"type": "string", "minLength": 1},
+        "template_ref": {"anyOf": [{"$ref": "#/$defs/templateRef"}, {"type": "null"}]}
+      }
+    },
+    "artifactKind": {
+      "enum": ["file", "directory", "public-api", "export", "declaration", "configuration"]
+    },
+    "dependencyRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "source", "target"],
+      "properties": {
+        "kind": {"enum": ["allow", "forbid", "require"]},
+        "source": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1}
+      }
+    },
+    "exceptionRule": {
+      "allOf": [
+        {"$ref": "#/$defs/dependencyRule"},
+        {
+          "type": "object",
+          "required": ["through", "reason"],
+          "properties": {
+            "through": {"type": "string", "minLength": 1},
+            "reason": {"type": "string", "minLength": 1}
+          }
+        }
+      ]
+    },
+    "pathRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pattern", "owner"],
+      "properties": {
+        "pattern": {"type": "string", "minLength": 1},
+        "owner": {"type": "string", "minLength": 1}
+      }
+    },
+    "requiredArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "scope"],
+      "properties": {
+        "kind": {"$ref": "#/$defs/artifactKind"},
+        "path": {"type": "string", "minLength": 1},
+        "scope": {"type": ["string", "null"]}
+      }
+    },
+    "ruleMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "origin", "sources", "verification"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "origin": {"enum": ["canonical-source", "frontend-adaptation", "framework-convention", "product-decision"]},
+        "sources": {"type": "array", "items": {"type": "string"}},
+        "verification": {"$ref": "#/$defs/verification"}
+      }
+    }
+  }
+}

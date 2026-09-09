@@ -1,0 +1,165 @@
+{
+  "version": {
+    "language": "0.1",
+    "schema": "architecture-contract@0.1"
+  },
+  "name": "admin-panel",
+  "profile": {
+    "name": "angular",
+    "version": "0.1"
+  },
+  "root": "src",
+  "dimensions": {
+    "decomposition": "feature-areas",
+    "internal_structure": "angular-style-guide",
+    "dependency_policy": "framework-unspecified",
+    "visibility": "framework-unspecified"
+  },
+  "symbols": [
+    {
+      "id": "area:app",
+      "name": "app",
+      "kind": "feature-area"
+    },
+    {
+      "id": "area:catalog",
+      "name": "catalog",
+      "kind": "feature-area"
+    },
+    {
+      "id": "area:checkout",
+      "name": "checkout",
+      "kind": "feature-area"
+    },
+    {
+      "id": "area:orders",
+      "name": "orders",
+      "kind": "feature-area"
+    },
+    {
+      "id": "area:payments",
+      "name": "payments",
+      "kind": "feature-area"
+    },
+    {
+      "id": "area:shared",
+      "name": "shared",
+      "kind": "feature-area"
+    }
+  ],
+  "dependency_rules": [
+    {
+      "kind": "forbid",
+      "source": "catalog",
+      "target": "payments"
+    },
+    {
+      "kind": "allow",
+      "source": "catalog",
+      "target": "shared"
+    },
+    {
+      "kind": "allow",
+      "source": "checkout",
+      "target": "orders"
+    },
+    {
+      "kind": "allow",
+      "source": "checkout",
+      "target": "payments"
+    },
+    {
+      "kind": "allow",
+      "source": "orders",
+      "target": "catalog"
+    },
+    {
+      "kind": "allow",
+      "source": "orders",
+      "target": "shared"
+    },
+    {
+      "kind": "forbid",
+      "source": "shared",
+      "target": "catalog"
+    }
+  ],
+  "exceptions": [
+    {
+      "kind": "allow",
+      "source": "orders",
+      "target": "catalog",
+      "through": "public-api",
+      "reason": "Orders consume catalog data through the catalog public API"
+    }
+  ],
+  "path_rules": [
+    {
+      "pattern": "src/app/**",
+      "owner": "app"
+    },
+    {
+      "pattern": "src/app/catalog/**",
+      "owner": "catalog"
+    },
+    {
+      "pattern": "src/app/checkout/**",
+      "owner": "checkout"
+    },
+    {
+      "pattern": "src/app/orders/**",
+      "owner": "orders"
+    },
+    {
+      "pattern": "src/app/payments/**",
+      "owner": "payments"
+    },
+    {
+      "pattern": "src/app/shared/**",
+      "owner": "shared"
+    }
+  ],
+  "required_artifacts": [
+    {
+      "kind": "configuration",
+      "path": "src/app/app.config.ts",
+      "scope": "app"
+    },
+    {
+      "kind": "directory",
+      "path": "src/app/catalog",
+      "scope": "catalog"
+    },
+    {
+      "kind": "file",
+      "path": "src/app/catalog/index.ts",
+      "scope": "catalog"
+    },
+    {
+      "kind": "public-api",
+      "path": "src/app/catalog/index.ts",
+      "scope": "catalog"
+    },
+    {
+      "kind": "directory",
+      "path": "src/app/orders",
+      "scope": "orders"
+    }
+  ],
+  "rules": [
+    {
+      "id": "contract.declarations.unique",
+      "origin": "canonical-source",
+      "sources": [],
+      "verification": "deterministic"
+    },
+    {
+      "id": "angular.feature-area-organization",
+      "origin": "framework-convention",
+      "sources": [
+        "angular-style-guide"
+      ],
+      "verification": "deterministic"
+    }
+  ]
+}

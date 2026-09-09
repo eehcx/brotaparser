@@ -1,0 +1,7 @@
+contract admin-panel {
+  language "0.1"
+  profile angular version "0.1"
+  root "src"
+  area movie-reel
+  allow show-times -> movie-reel
+}

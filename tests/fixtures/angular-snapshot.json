@@ -1,0 +1,22 @@
+{
+  "version": {"schema": "project-snapshot@0.1"},
+  "root": "src",
+  "blueprint": {
+    "name": "angular",
+    "version": "0.1",
+    "schema": "architecture-blueprint@0.1"
+  },
+  "directories": [],
+  "files": [
+    {
+      "path": "src/app/catalog/catalog.ts",
+      "evidence": {"level": "observed", "source": "filesystem", "confidence": 100}
+    }
+  ],
+  "artifacts": [],
+  "imports": [],
+  "symbols": [],
+  "routes": [],
+  "providers": [],
+  "configurations": []
+}

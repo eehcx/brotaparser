@@ -1,15 +1,38 @@
-document = { SOI ~ line* ~ EOI }
+document = { SOI ~ contract ~ EOI }
+contract = { "contract" ~ identifier ~ "{" ~ statement* ~ "}" }
 
-line = _{ profile_line | root_line | layer_line | dependency_line | blank_line }
-profile_line = { "profile" ~ identifier ~ "@" ~ version ~ line_end }
-root_line = { "root" ~ quoted ~ line_end }
-layer_line = { "layer" ~ identifier ~ line_end }
-dependency_line = { "depends" ~ identifier ~ "on" ~ identifier ~ line_end }
-blank_line = { NEWLINE }
+statement = _{
+    language_decl
+    | profile_decl
+    | root_decl
+    | area_decl
+    | dependency_decl
+    | exception_decl
+    | path_decl
+    | forbidden_path_decl
+    | artifact_decl
+}
 
-identifier = @{ (ASCII_ALPHA | "_" ) ~ (ASCII_ALPHANUMERIC | "_" | "-" )* }
-version = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
+language_decl = { "language" ~ quoted ~ terminator }
+profile_decl = { "profile" ~ identifier ~ "version" ~ quoted ~ terminator }
+root_decl = { "root" ~ quoted ~ terminator }
+area_decl = { "area" ~ identifier ~ terminator }
+dependency_decl = { dependency_kind ~ identifier ~ "->" ~ identifier ~ terminator }
+exception_decl = { "exception" ~ dependency_kind ~ identifier ~ "->" ~ identifier ~ "{" ~ through_decl ~ reason_decl ~ "}" }
+through_decl = { "through" ~ identifier ~ terminator }
+reason_decl = { "reason" ~ quoted ~ terminator }
+path_decl = { "path" ~ quoted ~ "owns" ~ "area" ~ identifier ~ terminator }
+forbidden_path_decl = { "forbid" ~ "path" ~ quoted ~ terminator }
+artifact_decl = { "require" ~ artifact_kind ~ quoted ~ scope? ~ terminator }
+
+dependency_kind = @{ "allow" | "forbid" | "require" }
+artifact_kind = @{ "file" | "directory" | "public-api" | "export" | "declaration" | "configuration" }
+scope = { "in" ~ "area" ~ identifier }
+identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" | "-")* }
 quoted = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
-line_end = _{ ";"? ~ (NEWLINE | &EOI) }
+terminator = _{ ";"? }
+COMMENT = _{ line_comment | block_comment }
+line_comment = _{ "//" ~ (!NEWLINE ~ ANY)* }
+block_comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+WHITESPACE = _{ " " | "\t" | NEWLINE | COMMENT }
 NEWLINE = _{ "\r\n" | "\n" }
-WHITESPACE = _{ " " | "\t" }

@@ -1,0 +1,37 @@
+{
+  "version": {"schema": "architecture-blueprint@0.1"},
+  "profile": {"name": "angular", "version": "0.1"},
+  "provenance": {
+    "sources": ["angular-style-guide"],
+    "verification": "deterministic"
+  },
+  "dimensions": {
+    "decomposition": "feature-areas",
+    "internal_structure": "angular-style-guide",
+    "dependency_policy": "framework-unspecified",
+    "visibility": "framework-unspecified"
+  },
+  "layout": {
+    "root": "src",
+    "areas": [
+      {"id": "app", "path": "src/app", "kind": "shell"},
+      {"id": "catalog", "path": "src/app/catalog", "kind": "feature-area"},
+      {"id": "checkout", "path": "src/app/checkout", "kind": "feature-area"},
+      {"id": "core", "path": "src/app/core", "kind": "support"},
+      {"id": "shared", "path": "src/app/shared", "kind": "support"},
+      {"id": "users", "path": "src/app/users", "kind": "feature-area"}
+    ]
+  },
+  "artifacts": [],
+  "dependency_rules": [],
+  "exceptions": [],
+  "path_rules": [],
+  "required_artifacts": [],
+  "forbidden_paths": [
+    "src/app/application/**",
+    "src/app/domain/**",
+    "src/app/infrastructure/**",
+    "src/app/presentation/**"
+  ],
+  "rules": []
+}

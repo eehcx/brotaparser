@@ -1,0 +1,10 @@
+contract admin-panel {
+  language "0.1"
+  profile angular version "0.1"
+  root "src"
+  area movie-reel
+  area show-times
+  area reserve-tickets
+  allow show-times -> movie-reel
+  require reserve-tickets -> movie-reel
+}

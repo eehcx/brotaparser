@@ -1,0 +1,9 @@
+[
+  {
+    "code": "BRT-CONF-003",
+    "severity": "error",
+    "message": "forbidden dependency `catalog -> checkout`",
+    "context": "src/app/catalog/catalog.ts",
+    "locations": []
+  }
+]

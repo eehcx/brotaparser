@@ -2,6 +2,15 @@
 name = "brotaparser"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85"
+description = "A Rust parser and compiler for declarative frontend architecture contracts."
+license = "GPL-3.0-only"
+repository = "https://github.com/eehcx/brotaparser"
+homepage = "https://github.com/eehcx/brotaparser"
+documentation = "https://docs.rs/brotaparser"
+readme = "README.md"
+keywords = ["angular", "architecture", "contracts", "frontend", "parser"]
+categories = ["development-tools", "parser-implementations"]
 
 [dependencies]
 pest = "2.8"
