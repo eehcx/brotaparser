@@ -1,13 +1,9 @@
 name: Publish crate
 
 on:
-  workflow_dispatch:
-    inputs:
-      confirm_publish:
-        description: Publish the tagged version to crates.io
-        required: true
-        type: boolean
-        default: false
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: read
@@ -20,12 +16,6 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Require explicit confirmation
-        if: ${{ !inputs.confirm_publish }}
-        run: |
-          echo "Set confirm_publish to publish this crate."
-          exit 1
-
       - name: Checkout
         uses: actions/checkout@v4
         with:

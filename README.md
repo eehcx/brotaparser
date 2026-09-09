@@ -100,8 +100,9 @@ BrotaLibre.
 
 ## Publishing
 
-Releases are published manually from an immutable `v<major>.<minor>.<patch>`
-Git tag. The tag version must match `Cargo.toml`.
+Releases are published automatically when an immutable
+`v<major>.<minor>.<patch>` Git tag is pushed. The tag version must match
+`Cargo.toml`.
 
 Before the first release, create a crates.io API token and add it to the
 repository Actions secrets as `CRATES_IO_TOKEN`. Then:
@@ -115,6 +116,5 @@ git tag -a v0.1.0 -m "Release v0.1.0"
 git push origin v0.1.0
 ```
 
-Run the `Publish crate` GitHub Actions workflow from that tag with
-`confirm_publish` enabled. The workflow verifies the tag, package version, and
-package contents before publishing to crates.io.
+The `Publish crate` workflow verifies the tag, package version, and package
+contents before publishing to crates.io.
