@@ -198,7 +198,7 @@ fn check_dependencies(
             {
                 diagnostics.push(Diagnostic::error(
                     DiagnosticCode::ConformanceDependency,
-                    format!("forbidden dependency `{source} -> {target}`"),
+                    dependency_violation_message(contract, rule),
                     Some(import.source_path.clone()),
                     location_from_snapshot(import.location.as_ref()),
                 ));
@@ -226,6 +226,72 @@ fn check_dependencies(
             ));
         }
     }
+}
+
+fn dependency_violation_message(contract: &ArchitectureContract, rule: &DependencyRule) -> String {
+    let rule_identity = dependency_rule_identity(contract, rule);
+    let suggestion = dependency_suggestion(rule);
+
+    format!(
+        "dependency violates {rule_identity}: forbidden dependency `{} -> {}`; {suggestion}",
+        rule.source, rule.target
+    )
+}
+
+fn dependency_rule_identity(contract: &ArchitectureContract, rule: &DependencyRule) -> String {
+    if contract.profile.name == "angular" && contract.profile.version == "0.1" {
+        let is_support_area = |area: &str| matches!(area, "core" | "shared");
+        let is_feature_area = |area: &str| !matches!(area, "app" | "core" | "shared");
+
+        if is_support_area(&rule.source) && is_feature_area(&rule.target) {
+            return "R-DEP-1".to_owned();
+        }
+        if rule.source != "app" && rule.target == "app" {
+            return "R-DEP-2".to_owned();
+        }
+        if is_feature_area(&rule.source)
+            && is_feature_area(&rule.target)
+            && rule.source != rule.target
+        {
+            return "R-DEP-3".to_owned();
+        }
+    }
+
+    format!("forbid `{} -> {}`", rule.source, rule.target)
+}
+
+fn dependency_suggestion(rule: &DependencyRule) -> String {
+    let is_feature_area = |area: &str| !matches!(area, "app" | "core" | "shared");
+
+    if rule.target == "app" && is_feature_area(&rule.source) {
+        return format!(
+            "move shared logic to `shared`, or move the wiring into `app` and depend on `{}` through `src/app/{}/index.ts`",
+            rule.source, rule.source
+        );
+    }
+    if rule.target == "app" {
+        return format!(
+            "keep `{}` independent of the app root; move app-level wiring into `src/app/app.config.ts` or `src/app/app.routes.ts`",
+            rule.source
+        );
+    }
+    if matches!(rule.source.as_str(), "core" | "shared") && is_feature_area(&rule.target) {
+        return format!(
+            "move feature-specific logic into `{}` rather than making `{}` import it",
+            rule.target, rule.source
+        );
+    }
+    if is_feature_area(&rule.source) && is_feature_area(&rule.target) {
+        return format!(
+            "import `{}` through its public API at `src/app/{}/index.ts` and declare a matching `through` exception",
+            rule.target, rule.target
+        );
+    }
+
+    format!(
+        "remove the import from `{}` to `{}`, or declare a justified exception through an explicit public channel",
+        rule.source, rule.target
+    )
 }
 
 fn is_allowed_by_exception(
