@@ -48,37 +48,51 @@ pub fn parse(source: &str) -> Result<ContractDocument, Diagnostics> {
     };
 
     let mut statements = contract.into_inner();
-    document.name = statements
-        .next()
-        .expect("contract name")
-        .as_str()
-        .to_owned();
+    let contract_name = statements.next().expect("contract name");
+    document.name = match contract_name.as_rule() {
+        Rule::identifier => contract_name.as_str().to_owned(),
+        Rule::quoted => unquote(&contract_name, source)?,
+        _ => unreachable!("contract names are identifiers or quoted strings"),
+    };
     for statement in statements {
         match statement.as_rule() {
-            Rule::language_decl => document.languages.push(parse_language(&statement)),
-            Rule::schema_decl => document.metadata.schemas.push(parse_language(&statement)),
-            Rule::profile_decl => document.profiles.push(parse_profile(&statement)),
-            Rule::root_decl => document.roots.push(parse_root(&statement)),
+            Rule::language_decl => document.languages.push(parse_language(&statement, source)?),
+            Rule::schema_decl => document
+                .metadata
+                .schemas
+                .push(parse_language(&statement, source)?),
+            Rule::profile_decl => document.profiles.push(parse_profile(&statement, source)?),
+            Rule::root_decl => document.roots.push(parse_root(&statement, source)?),
             Rule::area_decl => document.areas.push(parse_area(&statement)),
             Rule::dimension_decl => document
                 .metadata
                 .dimensions
-                .push(parse_dimension(&statement)),
+                .push(parse_dimension(&statement, source)?),
             Rule::symbols_explicit_decl => document.metadata.symbols_explicit = true,
-            Rule::symbol_decl => document.metadata.symbols.push(parse_symbol(&statement)),
+            Rule::symbol_decl => document
+                .metadata
+                .symbols
+                .push(parse_symbol(&statement, source)?),
             Rule::dependency_decl => document.dependencies.push(parse_dependency(&statement)),
-            Rule::exception_decl => document.exceptions.push(parse_exception(&statement)),
-            Rule::path_decl => document.paths.push(parse_path(&statement)),
+            Rule::exception_decl => document
+                .exceptions
+                .push(parse_exception(&statement, source)?),
+            Rule::path_decl => document.paths.push(parse_path(&statement, source)?),
             Rule::forbidden_path_decl => document
                 .forbidden_paths
-                .push(parse_forbidden_path(&statement)),
-            Rule::artifact_decl => document.required_artifacts.push(parse_artifact(&statement)),
+                .push(parse_forbidden_path(&statement, source)?),
+            Rule::artifact_decl => document
+                .required_artifacts
+                .push(parse_artifact(&statement, source)?),
             Rule::forbidden_paths_state_decl => {
                 document.metadata.forbidden_paths_present =
                     Some(statement.as_str().trim_end().ends_with("present"));
             }
             Rule::rules_explicit_decl => document.metadata.rules_explicit = true,
-            Rule::rule_decl => document.metadata.rules.push(parse_rule(&statement)),
+            Rule::rule_decl => document
+                .metadata
+                .rules
+                .push(parse_rule(&statement, source)?),
             _ => unreachable!("statements are silent and expose declaration rules"),
         }
     }
@@ -86,31 +100,31 @@ pub fn parse(source: &str) -> Result<ContractDocument, Diagnostics> {
     Ok(document)
 }
 
-fn parse_language(pair: &Pair<'_, Rule>) -> VersionDecl {
+fn parse_language(pair: &Pair<'_, Rule>, source: &str) -> Result<VersionDecl, Diagnostics> {
     let value = pair.clone().into_inner().next().expect("language version");
-    VersionDecl {
-        value: unquote(value.as_str()),
+    Ok(VersionDecl {
+        value: unquote(&value, source)?,
         span: span(pair),
-    }
+    })
 }
 
-fn parse_profile(pair: &Pair<'_, Rule>) -> ProfileDecl {
+fn parse_profile(pair: &Pair<'_, Rule>, source: &str) -> Result<ProfileDecl, Diagnostics> {
     let mut inner = pair.clone().into_inner();
     let name = inner.next().expect("profile name");
     let version = inner.next().expect("profile version");
-    ProfileDecl {
+    Ok(ProfileDecl {
         name: name.as_str().to_owned(),
-        version: unquote(version.as_str()),
+        version: unquote(&version, source)?,
         span: span(pair),
-    }
+    })
 }
 
-fn parse_root(pair: &Pair<'_, Rule>) -> RootDecl {
+fn parse_root(pair: &Pair<'_, Rule>, source: &str) -> Result<RootDecl, Diagnostics> {
     let value = pair.clone().into_inner().next().expect("root path");
-    RootDecl {
-        path: unquote(value.as_str()),
+    Ok(RootDecl {
+        path: unquote(&value, source)?,
         span: span(pair),
-    }
+    })
 }
 
 fn parse_area(pair: &Pair<'_, Rule>) -> AreaDecl {
@@ -121,28 +135,28 @@ fn parse_area(pair: &Pair<'_, Rule>) -> AreaDecl {
     }
 }
 
-fn parse_dimension(pair: &Pair<'_, Rule>) -> DimensionDecl {
+fn parse_dimension(pair: &Pair<'_, Rule>, source: &str) -> Result<DimensionDecl, Diagnostics> {
     let mut inner = pair.clone().into_inner();
     let name = inner.next().expect("dimension name");
     let value = inner.next().expect("dimension value");
-    DimensionDecl {
+    Ok(DimensionDecl {
         name: name.as_str().to_owned(),
-        value: unquote(value.as_str()),
+        value: unquote(&value, source)?,
         span: span(pair),
-    }
+    })
 }
 
-fn parse_symbol(pair: &Pair<'_, Rule>) -> SymbolDecl {
+fn parse_symbol(pair: &Pair<'_, Rule>, source: &str) -> Result<SymbolDecl, Diagnostics> {
     let mut inner = pair.clone().into_inner();
     let id = inner.next().expect("symbol id");
     let name = inner.next().expect("symbol name");
     let kind = inner.next().expect("symbol kind");
-    SymbolDecl {
-        id: unquote(id.as_str()),
-        name: unquote(name.as_str()),
-        kind: unquote(kind.as_str()),
+    Ok(SymbolDecl {
+        id: unquote(&id, source)?,
+        name: unquote(&name, source)?,
+        kind: unquote(&kind, source)?,
         span: span(pair),
-    }
+    })
 }
 
 fn parse_dependency(pair: &Pair<'_, Rule>) -> DependencyRuleDecl {
@@ -163,7 +177,7 @@ fn parse_dependency(pair: &Pair<'_, Rule>) -> DependencyRuleDecl {
     }
 }
 
-fn parse_exception(pair: &Pair<'_, Rule>) -> ExceptionDecl {
+fn parse_exception(pair: &Pair<'_, Rule>, source_text: &str) -> Result<ExceptionDecl, Diagnostics> {
     let mut inner = pair.clone().into_inner();
     let kind = match inner.next().expect("exception kind").as_str() {
         "allow" => DependencyRuleKind::Allow,
@@ -185,40 +199,46 @@ fn parse_exception(pair: &Pair<'_, Rule>) -> ExceptionDecl {
         .into_inner()
         .next()
         .expect("exception reason");
-    ExceptionDecl {
+    Ok(ExceptionDecl {
         kind,
         source: source.as_str().to_owned(),
         target: target.as_str().to_owned(),
         through: through.as_str().to_owned(),
-        reason: unquote(reason.as_str()),
+        reason: unquote(&reason, source_text)?,
         span: span(pair),
-    }
+    })
 }
 
-fn parse_path(pair: &Pair<'_, Rule>) -> PathRuleDecl {
+fn parse_path(pair: &Pair<'_, Rule>, source_text: &str) -> Result<PathRuleDecl, Diagnostics> {
     let mut inner = pair.clone().into_inner();
     let pattern = inner.next().expect("path pattern");
     let owner = inner.next().expect("path owner");
-    PathRuleDecl {
-        pattern: unquote(pattern.as_str()),
+    Ok(PathRuleDecl {
+        pattern: unquote(&pattern, source_text)?,
         owner: owner.as_str().to_owned(),
         span: span(pair),
-    }
+    })
 }
 
-fn parse_forbidden_path(pair: &Pair<'_, Rule>) -> ForbiddenPathDecl {
+fn parse_forbidden_path(
+    pair: &Pair<'_, Rule>,
+    source_text: &str,
+) -> Result<ForbiddenPathDecl, Diagnostics> {
     let pattern = pair
         .clone()
         .into_inner()
         .next()
         .expect("forbidden path pattern");
-    ForbiddenPathDecl {
-        pattern: unquote(pattern.as_str()),
+    Ok(ForbiddenPathDecl {
+        pattern: unquote(&pattern, source_text)?,
         span: span(pair),
-    }
+    })
 }
 
-fn parse_artifact(pair: &Pair<'_, Rule>) -> RequiredArtifactDecl {
+fn parse_artifact(
+    pair: &Pair<'_, Rule>,
+    source_text: &str,
+) -> Result<RequiredArtifactDecl, Diagnostics> {
     let mut inner = pair.clone().into_inner();
     let kind = match inner.next().expect("artifact kind").as_str() {
         "file" => RequiredArtifactKind::File,
@@ -238,15 +258,15 @@ fn parse_artifact(pair: &Pair<'_, Rule>) -> RequiredArtifactDecl {
             .as_str()
             .to_owned()
     });
-    RequiredArtifactDecl {
+    Ok(RequiredArtifactDecl {
         kind,
-        path: unquote(path.as_str()),
+        path: unquote(&path, source_text)?,
         scope,
         span: span(pair),
-    }
+    })
 }
 
-fn parse_rule(pair: &Pair<'_, Rule>) -> RuleMetadataDecl {
+fn parse_rule(pair: &Pair<'_, Rule>, source_text: &str) -> Result<RuleMetadataDecl, Diagnostics> {
     let mut inner = pair.clone().into_inner();
     let id = inner.next().expect("rule id");
     let origin = inner.next().expect("rule origin");
@@ -255,15 +275,15 @@ fn parse_rule(pair: &Pair<'_, Rule>) -> RuleMetadataDecl {
         .next()
         .expect("rule sources")
         .into_inner()
-        .map(|source| unquote(source.as_str()))
-        .collect();
-    RuleMetadataDecl {
-        id: unquote(id.as_str()),
+        .map(|source| unquote(&source, source_text))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(RuleMetadataDecl {
+        id: unquote(&id, source_text)?,
         origin: origin.as_str().to_owned(),
         verification: verification.as_str().to_owned(),
         sources,
         span: span(pair),
-    }
+    })
 }
 
 fn span(pair: &Pair<'_, Rule>) -> Span {
@@ -274,6 +294,18 @@ fn span(pair: &Pair<'_, Rule>) -> Span {
     }
 }
 
-fn unquote(value: &str) -> String {
-    value[1..value.len() - 1].to_owned()
+fn unquote(value: &Pair<'_, Rule>, source: &str) -> Result<String, Diagnostics> {
+    serde_json::from_str(value.as_str()).map_err(|error| {
+        let value_span = value.as_span();
+        Diagnostics::single(Diagnostic::error(
+            DiagnosticCode::SyntaxUnexpectedToken,
+            format!("invalid quoted string: {error}"),
+            None,
+            vec![Location::from_source(
+                source,
+                value_span.start(),
+                value_span.end(),
+            )],
+        ))
+    })
 }

@@ -604,6 +604,25 @@ fn round_trips_every_typed_contract_field_except_blueprint_provenance() {
 }
 
 #[test]
+fn round_trips_contract_names_and_fields_with_escaped_unicode_strings() {
+    let blueprint =
+        resolve_blueprint_with_areas("angular", "0.1", &["orders".to_owned(), "users".to_owned()])
+            .expect("Angular blueprint should resolve for project feature areas");
+    let mut generated = derive_contract(&blueprint, "admin-panel");
+    generated.name = "admin \"panel\" \\ 世界".to_owned();
+    generated.dimensions.decomposition = "domain \"driven\" \\ café".to_owned();
+    let source = render_contract_source(&generated);
+    let compiled = compile_source(&source).unwrap_or_else(|error| {
+        panic!("escaped generated source did not compile:\n{source}\n{error:?}")
+    });
+    let json = serialize_json(&generated).expect("generated contract should serialize");
+    let mut expected = deserialize_json(&json).expect("generated contract should deserialize");
+    expected.derived_from = None;
+
+    assert_eq!(compiled, expected);
+}
+
+#[test]
 fn normalizes_snapshot_collections_deterministically() {
     let mut snapshot = ProjectSnapshot::new("src");
     snapshot.files = vec![
