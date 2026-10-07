@@ -3,30 +3,48 @@ contract = { "contract" ~ identifier ~ "{" ~ statement* ~ "}" }
 
 statement = _{
     language_decl
+    | schema_decl
     | profile_decl
     | root_decl
     | area_decl
+    | dimension_decl
+    | symbols_explicit_decl
+    | symbol_decl
     | dependency_decl
     | exception_decl
     | path_decl
     | forbidden_path_decl
     | artifact_decl
+    | forbidden_paths_state_decl
+    | rules_explicit_decl
+    | rule_decl
 }
 
 language_decl = { "language" ~ quoted ~ terminator }
+schema_decl = { "schema" ~ quoted ~ terminator }
 profile_decl = { "profile" ~ identifier ~ "version" ~ quoted ~ terminator }
 root_decl = { "root" ~ quoted ~ terminator }
 area_decl = { "area" ~ identifier ~ terminator }
+dimension_decl = { "dimension" ~ dimension_name ~ quoted ~ terminator }
+symbols_explicit_decl = { "symbols" ~ "explicit" ~ terminator }
+symbol_decl = { "symbol" ~ quoted ~ quoted ~ quoted ~ terminator }
 dependency_decl = { dependency_kind ~ identifier ~ "->" ~ identifier ~ terminator }
 exception_decl = { "exception" ~ dependency_kind ~ identifier ~ "->" ~ identifier ~ "{" ~ through_decl ~ reason_decl ~ "}" }
 through_decl = { "through" ~ identifier ~ terminator }
 reason_decl = { "reason" ~ quoted ~ terminator }
 path_decl = { "path" ~ quoted ~ "owns" ~ "area" ~ identifier ~ terminator }
 forbidden_path_decl = { "forbid" ~ "path" ~ quoted ~ terminator }
+forbidden_paths_state_decl = { "forbidden-paths" ~ ("present" | "absent") ~ terminator }
 artifact_decl = { "require" ~ artifact_kind ~ quoted ~ scope? ~ terminator }
+rules_explicit_decl = { "rules" ~ "explicit" ~ terminator }
+rule_decl = { "rule" ~ quoted ~ rule_origin ~ verification_level ~ source_list ~ terminator }
+source_list = { "[" ~ (quoted ~ ("," ~ quoted)*)? ~ "]" }
 
 dependency_kind = @{ "allow" | "forbid" | "require" }
 artifact_kind = @{ "file" | "directory" | "public-api" | "export" | "declaration" | "configuration" }
+dimension_name = @{ "decomposition" | "internal-structure" | "dependency-policy" | "visibility" }
+rule_origin = @{ "canonical-source" | "frontend-adaptation" | "framework-convention" | "product-decision" }
+verification_level = @{ "deterministic" | "heuristic" | "human-review" }
 scope = { "in" ~ "area" ~ identifier }
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" | "-")* }
 quoted = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }

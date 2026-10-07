@@ -1,6 +1,6 @@
 use crate::ast::{
-    AreaDecl, ContractDocument, DependencyRuleDecl, ExceptionDecl, PathRuleDecl, ProfileDecl,
-    RequiredArtifactDecl, RootDecl, Span, VersionDecl,
+    AreaDecl, ContractDocument, ContractMetadata, DependencyRuleDecl, ExceptionDecl, PathRuleDecl,
+    ProfileDecl, RequiredArtifactDecl, RootDecl, Span, VersionDecl,
 };
 use crate::ast::{DependencyRuleKind, RequiredArtifactKind};
 
@@ -118,6 +118,7 @@ impl ProfileInput {
                     span,
                 })
                 .collect(),
+            metadata: ContractMetadata::default(),
         }
     }
 }

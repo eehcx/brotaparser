@@ -310,6 +310,7 @@ fn external_spans_do_not_panic_the_public_compiler() {
         paths: Vec::new(),
         forbidden_paths: Vec::new(),
         required_artifacts: Vec::new(),
+        metadata: brotaparser::ContractMetadata::default(),
     };
 
     let result = compile(&document, "é");
@@ -584,6 +585,22 @@ fn renders_a_derived_contract_that_can_be_parsed_again() {
             .unwrap()
             .contains(&"src/app/domain/**".to_owned())
     );
+}
+
+#[test]
+fn round_trips_every_typed_contract_field_except_blueprint_provenance() {
+    let blueprint =
+        resolve_blueprint_with_areas("angular", "0.1", &["orders".to_owned(), "users".to_owned()])
+            .expect("Angular blueprint should resolve for project feature areas");
+    let generated = derive_contract(&blueprint, "admin-panel");
+    let source = render_contract_source(&generated);
+    let compiled = compile_source(&source)
+        .unwrap_or_else(|error| panic!("generated source did not compile:\n{source}\n{error:?}"));
+    let json = serialize_json(&generated).expect("generated contract should serialize");
+    let mut expected = deserialize_json(&json).expect("generated contract should deserialize");
+    expected.derived_from = None;
+
+    assert_eq!(compiled, expected);
 }
 
 #[test]
