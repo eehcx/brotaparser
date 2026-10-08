@@ -10,9 +10,10 @@ mod snapshot;
 mod syntax;
 
 pub use ast::{
-    AreaDecl, ContractDocument, DependencyRuleDecl, DependencyRuleKind, ExceptionDecl,
-    ForbiddenPathDecl, PathRuleDecl, ProfileDecl, RequiredArtifactDecl, RequiredArtifactKind,
-    RootDecl, Span, VersionDecl,
+    AreaDecl, ContractDocument, ContractMetadata, DependencyRuleDecl, DependencyRuleKind,
+    DimensionDecl, ExceptionDecl, ForbiddenPathDecl, PathRuleDecl, ProfileDecl,
+    RequiredArtifactDecl, RequiredArtifactKind, RootDecl, RuleMetadataDecl, Span, SymbolDecl,
+    VersionDecl,
 };
 pub use blueprint::{
     AreaLayout, ArtifactIdentity, Blueprint, BlueprintError, BlueprintProvenance, BlueprintVersion,

@@ -44,6 +44,46 @@ fn parses_the_canonical_contract_syntax() {
 }
 
 #[test]
+fn parses_typed_contract_metadata_declarations() {
+    let source = r#"
+contract metadata-test {
+  language "0.1"
+  profile angular version "0.1"
+  root "src"
+  schema "architecture-contract@0.1"
+  dimension decomposition "feature-areas"
+  symbols explicit
+  symbol "area:orders" "orders" "feature-area"
+  forbidden-paths present
+  rules explicit
+  rule "contract.declarations.unique" canonical-source deterministic ["contract-source"]
+}
+"#;
+
+    let document = parse(source).expect("metadata declarations should parse");
+
+    assert_eq!(
+        document.metadata.schemas[0].value,
+        "architecture-contract@0.1"
+    );
+    assert_eq!(document.metadata.dimensions[0].name, "decomposition");
+    assert_eq!(document.metadata.dimensions[0].value, "feature-areas");
+    assert!(document.metadata.symbols_explicit);
+    assert_eq!(document.metadata.symbols[0].id, "area:orders");
+    assert_eq!(document.metadata.symbols[0].name, "orders");
+    assert_eq!(document.metadata.symbols[0].kind, "feature-area");
+    assert_eq!(document.metadata.forbidden_paths_present, Some(true));
+    assert!(document.metadata.rules_explicit);
+    assert_eq!(
+        document.metadata.rules[0].id,
+        "contract.declarations.unique"
+    );
+    assert_eq!(document.metadata.rules[0].origin, "canonical-source");
+    assert_eq!(document.metadata.rules[0].verification, "deterministic");
+    assert_eq!(document.metadata.rules[0].sources, ["contract-source"]);
+}
+
+#[test]
 fn malformed_syntax_returns_a_stable_syntax_diagnostic() {
     let error = parse("contract admin-panel { language \"0.1\"").expect_err("source is malformed");
 
@@ -310,6 +350,7 @@ fn external_spans_do_not_panic_the_public_compiler() {
         paths: Vec::new(),
         forbidden_paths: Vec::new(),
         required_artifacts: Vec::new(),
+        metadata: brotaparser::ContractMetadata::default(),
     };
 
     let result = compile(&document, "é");
