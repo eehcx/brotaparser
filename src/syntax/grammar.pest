@@ -1,5 +1,5 @@
 document = { SOI ~ contract ~ EOI }
-contract = { "contract" ~ identifier ~ "{" ~ statement* ~ "}" }
+contract = { "contract" ~ (quoted | identifier) ~ "{" ~ statement* ~ "}" }
 
 statement = _{
     language_decl
@@ -47,7 +47,7 @@ rule_origin = @{ "canonical-source" | "frontend-adaptation" | "framework-convent
 verification_level = @{ "deterministic" | "heuristic" | "human-review" }
 scope = { "in" ~ "area" ~ identifier }
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" | "-")* }
-quoted = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+quoted = @{ "\"" ~ ("\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t" | ("u" ~ ASCII_HEX_DIGIT{4})) | !("\"" | "\\") ~ ANY)* ~ "\"" }
 terminator = _{ ";"? }
 COMMENT = _{ line_comment | block_comment }
 line_comment = _{ "//" ~ (!NEWLINE ~ ANY)* }

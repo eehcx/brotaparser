@@ -722,6 +722,23 @@ contract render-metadata {
 }
 
 #[test]
+fn round_trips_contract_names_and_fields_with_escaped_unicode_strings() {
+    let blueprint = resolve_blueprint("angular", "0.1").expect("Angular blueprint should resolve");
+    let mut generated = derive_contract(&blueprint, "admin-panel");
+    generated.name = "admin \"panel\" \\ 世界".to_owned();
+    generated.dimensions.decomposition = "domain \"driven\" \\ café".to_owned();
+    let source = render_contract_source(&generated);
+
+    let compiled = compile_source(&source).unwrap_or_else(|error| {
+        panic!("escaped generated source did not compile:\n{source}\n{error:?}")
+    });
+    let mut expected = generated;
+    expected.derived_from = None;
+
+    assert_eq!(compiled, expected);
+}
+
+#[test]
 fn normalizes_snapshot_collections_deterministically() {
     let mut snapshot = ProjectSnapshot::new("src");
     snapshot.files = vec![
