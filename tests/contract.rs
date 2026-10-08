@@ -817,3 +817,190 @@ fn reads_public_blueprint_snapshot_and_diagnostic_fixtures() {
     );
     assert_eq!(diagnostic[0]["code"], "BRT-CONF-003");
 }
+
+#[test]
+fn emits_deterministic_dependency_forbids_for_the_angular_baseline() {
+    let areas = ["users".to_owned(), "orders".to_owned()];
+    let blueprint = resolve_blueprint_with_areas("angular", "0.1", &areas)
+        .expect("Angular blueprint should resolve for project feature areas");
+    let reversed =
+        resolve_blueprint_with_areas("angular", "0.1", &["orders".to_owned(), "users".to_owned()])
+            .expect("Angular blueprint should resolve for reversed feature areas");
+    let forbidden_pairs: Vec<_> = blueprint
+        .dependency_rules
+        .iter()
+        .filter(|rule| rule.kind == DependencyRuleKind::Forbid)
+        .map(|rule| (rule.source.as_str(), rule.target.as_str()))
+        .collect();
+
+    assert_eq!(
+        forbidden_pairs,
+        vec![
+            ("core", "app"),
+            ("core", "orders"),
+            ("core", "users"),
+            ("orders", "app"),
+            ("orders", "users"),
+            ("shared", "app"),
+            ("shared", "orders"),
+            ("shared", "users"),
+            ("users", "app"),
+            ("users", "orders"),
+        ]
+    );
+    assert_eq!(blueprint.dependency_rules, reversed.dependency_rules);
+
+    let contract = derive_contract(&blueprint, "admin-panel");
+    assert_eq!(
+        contract.dimensions.dependency_policy,
+        "framework-unspecified"
+    );
+}
+
+#[test]
+fn keeps_allowed_angular_edges_open_and_does_not_require_allow_rules() {
+    let blueprint = resolve_blueprint_with_areas("angular", "0.1", &["users".to_owned()])
+        .expect("Angular blueprint should resolve for project feature areas");
+    let mut contract = derive_contract(&blueprint, "admin-panel");
+    let mut snapshot = ProjectSnapshot::new("src");
+    snapshot.blueprint = contract.derived_from.clone();
+    for (source, target) in [
+        ("core", "shared"),
+        ("shared", "core"),
+        ("users", "core"),
+        ("users", "shared"),
+        ("app", "users"),
+    ] {
+        snapshot.imports.push(
+            ImportFact::observed(
+                format!("src/app/{source}/source.ts"),
+                format!("src/app/{target}/target.ts"),
+            )
+            .with_areas(source, target),
+        );
+    }
+
+    let diagnostics = diagnose(&contract, &snapshot);
+
+    assert!(!diagnostics.has_code(DiagnosticCode::ConformanceDependency));
+
+    contract.dependency_rules.retain(|rule| {
+        !(rule.kind == DependencyRuleKind::Allow
+            && rule.source == "users"
+            && rule.target == "shared")
+    });
+    let mut snapshot_without_allow = ProjectSnapshot::new("src");
+    snapshot_without_allow.blueprint = contract.derived_from.clone();
+    snapshot_without_allow.imports.push(
+        ImportFact::observed("src/app/users/users.ts", "src/app/shared/shared.ts")
+            .with_areas("users", "shared"),
+    );
+
+    let diagnostics_without_allow = diagnose(&contract, &snapshot_without_allow);
+
+    assert!(!diagnostics_without_allow.has_code(DiagnosticCode::ConformanceDependency));
+}
+
+#[test]
+fn forbidden_dependency_diagnostics_identify_the_rule_and_suggest_a_fix() {
+    let blueprint =
+        resolve_blueprint_with_areas("angular", "0.1", &["users".to_owned(), "orders".to_owned()])
+            .expect("Angular blueprint should resolve for project feature areas");
+    let contract = derive_contract(&blueprint, "admin-panel");
+    let mut snapshot = ProjectSnapshot::new("src");
+    snapshot.blueprint = contract.derived_from.clone();
+    snapshot.imports.extend([
+        ImportFact::observed("src/app/users/users.ts", "src/app/app.config.ts")
+            .with_areas("users", "app"),
+        ImportFact::observed("src/app/core/services.ts", "src/app/users/users.ts")
+            .with_areas("core", "users"),
+        ImportFact::observed("src/app/users/users.ts", "src/app/orders/orders.ts")
+            .with_areas("users", "orders"),
+    ]);
+
+    let diagnostics = diagnose(&contract, &snapshot);
+    let dependency_diagnostics: Vec<_> = diagnostics
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code == DiagnosticCode::ConformanceDependency.as_str())
+        .collect();
+
+    assert_eq!(dependency_diagnostics.len(), 3);
+    let app_violation = dependency_diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.context.as_deref() == Some("src/app/users/users.ts"))
+        .expect("users-to-app violation should retain its source context");
+    assert!(app_violation.message.contains("R-DEP-2"));
+    assert!(
+        app_violation
+            .message
+            .contains("move shared logic to `shared`")
+    );
+    assert!(
+        app_violation
+            .message
+            .contains("depend on `users` through `src/app/users/index.ts`")
+    );
+
+    let core_violation = dependency_diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.message.contains("core -> users"))
+        .expect("core-to-feature violation should be reported");
+    assert!(core_violation.message.contains("R-DEP-1"));
+    assert!(
+        core_violation
+            .message
+            .contains("move feature-specific logic into `users`")
+    );
+
+    let feature_violation = dependency_diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.message.contains("users -> orders"))
+        .expect("feature-to-feature violation should be reported");
+    assert!(feature_violation.message.contains("R-DEP-3"));
+    assert!(
+        feature_violation
+            .message
+            .contains("`src/app/orders/index.ts`")
+    );
+    assert!(feature_violation.message.contains("`through` exception"));
+}
+
+#[test]
+fn feature_dependency_exception_requires_the_declared_through_channel() {
+    let blueprint =
+        resolve_blueprint_with_areas("angular", "0.1", &["users".to_owned(), "orders".to_owned()])
+            .expect("Angular blueprint should resolve for project feature areas");
+    let mut contract = derive_contract(&blueprint, "admin-panel");
+    contract.exceptions.push(brotaparser::ExceptionRule {
+        kind: DependencyRuleKind::Allow,
+        source: "users".to_owned(),
+        target: "orders".to_owned(),
+        through: "public-api".to_owned(),
+        reason: "Users consume the orders public API".to_owned(),
+    });
+
+    let mut public_import =
+        ImportFact::observed("src/app/users/users.ts", "src/app/orders/index.ts")
+            .with_areas("users", "orders");
+    public_import.through = Some("public-api".to_owned());
+    let mut public_snapshot = ProjectSnapshot::new("src");
+    public_snapshot.blueprint = contract.derived_from.clone();
+    public_snapshot.imports.push(public_import);
+
+    let public_diagnostics = diagnose(&contract, &public_snapshot);
+
+    assert!(!public_diagnostics.has_code(DiagnosticCode::ConformanceDependency));
+
+    let mut private_import =
+        ImportFact::observed("src/app/users/users.ts", "src/app/orders/orders.ts")
+            .with_areas("users", "orders");
+    private_import.through = Some("private".to_owned());
+    let mut private_snapshot = ProjectSnapshot::new("src");
+    private_snapshot.blueprint = contract.derived_from.clone();
+    private_snapshot.imports.push(private_import);
+
+    let private_diagnostics = diagnose(&contract, &private_snapshot);
+
+    assert!(private_diagnostics.has_code(DiagnosticCode::ConformanceDependency));
+}

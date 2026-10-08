@@ -465,6 +465,26 @@ fn angular_blueprint(dimensions: Dimensions, feature_areas: &[String]) -> Bluepr
             });
         }
     }
+    for source in ["core", "shared"] {
+        for target in feature_areas {
+            dependencies.push(DependencyRule {
+                kind: DependencyRuleKind::Forbid,
+                source: source.to_owned(),
+                target: target.clone(),
+            });
+        }
+    }
+    for source in feature_areas
+        .iter()
+        .map(String::as_str)
+        .chain(["core", "shared"])
+    {
+        dependencies.push(DependencyRule {
+            kind: DependencyRuleKind::Forbid,
+            source: source.to_owned(),
+            target: "app".to_owned(),
+        });
+    }
     for source in feature_areas {
         for target in feature_areas {
             if source != target {
