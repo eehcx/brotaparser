@@ -189,12 +189,13 @@ pub fn deserialize_blueprint_json(input: &str) -> Result<Blueprint, serde_json::
 
 pub fn render_contract_source(contract: &ArchitectureContract) -> String {
     let mut lines = vec![
-        format!("contract {} {{", contract.name),
-        format!("  language \"{}\"", contract.version.language),
+        format!("contract {} {{", render_contract_name(&contract.name)),
+        format!("  language \"{}\"", quote(&contract.version.language)),
         format!("  schema \"{}\"", quote(&contract.version.schema)),
         format!(
             "  profile {} version \"{}\"",
-            contract.profile.name, contract.profile.version
+            contract.profile.name,
+            quote(&contract.profile.version)
         ),
         format!("  root \"{}\"", quote(&contract.root)),
     ];
@@ -605,6 +606,26 @@ fn verification_level_name(level: VerificationLevel) -> &'static str {
     }
 }
 
+fn render_contract_name(name: &str) -> String {
+    if is_identifier(name) {
+        name.to_owned()
+    } else {
+        format!("\"{}\"", quote(name))
+    }
+}
+
+fn is_identifier(value: &str) -> bool {
+    let mut characters = value.chars();
+    let Some(first) = characters.next() else {
+        return false;
+    };
+    (first.is_ascii_alphabetic() || first == '_')
+        && characters.all(|character| {
+            character.is_ascii_alphanumeric() || character == '_' || character == '-'
+        })
+}
+
 fn quote(value: &str) -> String {
-    value.replace('\\', "\\\\").replace('"', "\\\"")
+    let serialized = serde_json::to_string(value).expect("serializing a string is infallible");
+    serialized[1..serialized.len() - 1].to_owned()
 }
