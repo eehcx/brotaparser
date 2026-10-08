@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::ast::{ContractDocument, DependencyRuleKind};
 use crate::contract::{
-    ArchitectureContract, ContractVersion, DependencyRule, ExceptionRule, PathRule, ProfileVersion,
-    RequiredArtifact, ResolvedSymbol, RuleMetadata, RuleOrigin, VerificationLevel,
+    ArchitectureContract, ContractVersion, DependencyRule, Dimensions, ExceptionRule, PathRule,
+    ProfileVersion, RequiredArtifact, ResolvedSymbol, RuleMetadata, RuleOrigin, VerificationLevel,
 };
 use crate::diagnostics::{Diagnostic, DiagnosticCode, Diagnostics, Location};
 
@@ -20,36 +20,35 @@ pub fn compile(
     let language = resolve_language(document, source, &mut diagnostics);
     let profile = resolve_profile(document, source, &mut diagnostics);
     let root = resolve_root(document, source, &mut diagnostics);
+    let schema = resolve_schema(document, source, &mut diagnostics);
     let symbols = collect_symbols(document, source, &mut diagnostics);
+    let resolved_symbols = compile_symbols(document, &symbols);
+    let dimensions = compile_dimensions(document, &profile, source, &mut diagnostics);
     let dependency_rules = compile_dependency_rules(document, &symbols, source, &mut diagnostics);
     let exceptions = compile_exceptions(document, &symbols, source, &mut diagnostics);
     let path_rules = compile_path_rules(document, &symbols, source, &mut diagnostics);
     let forbidden_paths = compile_forbidden_paths(document, source, &mut diagnostics);
+    if document.metadata.forbidden_paths_present == Some(false) && !forbidden_paths.is_empty() {
+        for path in &document.forbidden_paths {
+            diagnostics.push(Diagnostic::error(
+                DiagnosticCode::ContractMetadataInvalid,
+                "forbidden paths are declared while their presence is marked absent",
+                Some(path.pattern.clone()),
+                vec![location(source, path.span.start, path.span.end)],
+            ));
+        }
+    }
     let required_artifacts =
         compile_required_artifacts(document, &symbols, source, &mut diagnostics);
+    let rules = compile_rule_metadata(document, source, &mut diagnostics);
 
     if !diagnostics.diagnostics.is_empty() {
         diagnostics.sort_stably();
         return Err(diagnostics);
     }
 
-    let normalized_symbols = symbols
-        .keys()
-        .map(|name| ResolvedSymbol {
-            id: format!("area:{name}"),
-            name: name.clone(),
-            kind: "feature-area".to_owned(),
-        })
-        .collect();
-    let dimensions = crate::profiles::resolve_profile(&profile.0, &profile.1)
-        .expect("validated profile must be registered")
-        .dimensions();
-
     Ok(ArchitectureContract {
-        version: ContractVersion {
-            language,
-            schema: "architecture-contract@0.1".to_owned(),
-        },
+        version: ContractVersion { language, schema },
         name: document.name.clone(),
         profile: ProfileVersion {
             name: profile.0,
@@ -57,28 +56,40 @@ pub fn compile(
         },
         root,
         dimensions,
-        symbols: normalized_symbols,
+        symbols: resolved_symbols,
         dependency_rules,
         exceptions,
         path_rules,
         required_artifacts,
-        rules: vec![
-            RuleMetadata {
-                id: "contract.declarations.unique".to_owned(),
-                origin: RuleOrigin::CanonicalSource,
-                sources: Vec::new(),
-                verification: VerificationLevel::Deterministic,
-            },
-            RuleMetadata {
-                id: "angular.feature-area-organization".to_owned(),
-                origin: RuleOrigin::FrameworkConvention,
-                sources: vec!["angular-style-guide".to_owned()],
-                verification: VerificationLevel::Deterministic,
-            },
-        ],
+        rules,
         derived_from: None,
-        forbidden_paths: (!forbidden_paths.is_empty()).then_some(forbidden_paths),
+        forbidden_paths: match document.metadata.forbidden_paths_present {
+            Some(false) => None,
+            Some(true) => Some(forbidden_paths),
+            None => (!forbidden_paths.is_empty()).then_some(forbidden_paths),
+        },
     })
+}
+
+fn resolve_schema(
+    document: &ContractDocument,
+    source: &str,
+    diagnostics: &mut Diagnostics,
+) -> String {
+    match document.metadata.schemas.as_slice() {
+        [] => "architecture-contract@0.1".to_owned(),
+        [schema] => schema.value.clone(),
+        schemas => {
+            diagnostics.push(duplicate_declaration(
+                "schema",
+                schemas.len(),
+                source,
+                schemas[1].span.start,
+                schemas[1].span.end,
+            ));
+            schemas[0].value.clone()
+        }
+    }
 }
 
 fn resolve_language(
@@ -184,12 +195,155 @@ fn resolve_root(
     }
 }
 
+fn compile_dimensions(
+    document: &ContractDocument,
+    profile: &(String, String),
+    source: &str,
+    diagnostics: &mut Diagnostics,
+) -> Dimensions {
+    let mut dimensions = crate::profiles::resolve_profile(&profile.0, &profile.1)
+        .map(|descriptor| descriptor.dimensions())
+        .unwrap_or_else(empty_dimensions);
+    let mut seen = HashSet::new();
+
+    for declaration in &document.metadata.dimensions {
+        if !seen.insert(declaration.name.as_str()) {
+            diagnostics.push(duplicate_declaration(
+                &format!("dimension `{}`", declaration.name),
+                2,
+                source,
+                declaration.span.start,
+                declaration.span.end,
+            ));
+            continue;
+        }
+        let dimension = match declaration.name.as_str() {
+            "decomposition" => Some(&mut dimensions.decomposition),
+            "internal-structure" => Some(&mut dimensions.internal_structure),
+            "dependency-policy" => Some(&mut dimensions.dependency_policy),
+            "visibility" => Some(&mut dimensions.visibility),
+            _ => None,
+        };
+        match dimension {
+            Some(value) => *value = declaration.value.clone(),
+            None => diagnostics.push(Diagnostic::error(
+                DiagnosticCode::ContractMetadataInvalid,
+                format!("unknown contract dimension `{}`", declaration.name),
+                Some(declaration.name.clone()),
+                vec![location(
+                    source,
+                    declaration.span.start,
+                    declaration.span.end,
+                )],
+            )),
+        }
+    }
+
+    dimensions
+}
+
+fn empty_dimensions() -> Dimensions {
+    Dimensions {
+        decomposition: String::new(),
+        internal_structure: String::new(),
+        dependency_policy: String::new(),
+        visibility: String::new(),
+    }
+}
+
+fn compile_rule_metadata(
+    document: &ContractDocument,
+    source: &str,
+    diagnostics: &mut Diagnostics,
+) -> Vec<RuleMetadata> {
+    if !document.metadata.rules_explicit && document.metadata.rules.is_empty() {
+        return vec![
+            RuleMetadata {
+                id: "contract.declarations.unique".to_owned(),
+                origin: RuleOrigin::CanonicalSource,
+                sources: Vec::new(),
+                verification: VerificationLevel::Deterministic,
+            },
+            RuleMetadata {
+                id: "angular.feature-area-organization".to_owned(),
+                origin: RuleOrigin::FrameworkConvention,
+                sources: vec!["angular-style-guide".to_owned()],
+                verification: VerificationLevel::Deterministic,
+            },
+        ];
+    }
+
+    let mut rules = Vec::new();
+    for declaration in &document.metadata.rules {
+        let origin = match declaration.origin.as_str() {
+            "canonical-source" => Some(RuleOrigin::CanonicalSource),
+            "frontend-adaptation" => Some(RuleOrigin::FrontendAdaptation),
+            "framework-convention" => Some(RuleOrigin::FrameworkConvention),
+            "product-decision" => Some(RuleOrigin::ProductDecision),
+            _ => None,
+        };
+        let verification = match declaration.verification.as_str() {
+            "deterministic" => Some(VerificationLevel::Deterministic),
+            "heuristic" => Some(VerificationLevel::Heuristic),
+            "human-review" => Some(VerificationLevel::HumanReview),
+            _ => None,
+        };
+        let (Some(origin), Some(verification)) = (origin, verification) else {
+            diagnostics.push(Diagnostic::error(
+                DiagnosticCode::ContractMetadataInvalid,
+                format!("rule `{}` has invalid metadata", declaration.id),
+                Some(format!(
+                    "origin: {}; verification: {}",
+                    declaration.origin, declaration.verification
+                )),
+                vec![location(
+                    source,
+                    declaration.span.start,
+                    declaration.span.end,
+                )],
+            ));
+            continue;
+        };
+        rules.push(RuleMetadata {
+            id: declaration.id.clone(),
+            origin,
+            sources: declaration.sources.clone(),
+            verification,
+        });
+    }
+    rules.sort_by(|left, right| left.id.cmp(&right.id));
+    rules
+}
+
 fn collect_symbols(
     document: &ContractDocument,
     source: &str,
     diagnostics: &mut Diagnostics,
 ) -> BTreeMap<String, crate::ast::Span> {
     let mut symbols = BTreeMap::new();
+    if document.metadata.symbols_explicit || !document.metadata.symbols.is_empty() {
+        let mut ids = HashSet::new();
+        for symbol in &document.metadata.symbols {
+            if !ids.insert(symbol.id.as_str()) {
+                diagnostics.push(Diagnostic::error(
+                    DiagnosticCode::SymbolDuplicate,
+                    format!("symbol id `{}` is declared more than once", symbol.id),
+                    Some(symbol.id.clone()),
+                    vec![location(source, symbol.span.start, symbol.span.end)],
+                ));
+            }
+            if symbols.insert(symbol.name.clone(), symbol.span).is_some() {
+                diagnostics.push(Diagnostic::error(
+                    DiagnosticCode::SymbolDuplicate,
+                    format!("symbol `{}` is declared more than once", symbol.name),
+                    Some(symbol.name.clone()),
+                    vec![location(source, symbol.span.start, symbol.span.end)],
+                ));
+            }
+        }
+        return symbols;
+    }
+
     for area in &document.areas {
         if symbols.insert(area.name.clone(), area.span).is_some() {
             diagnostics.push(Diagnostic::error(
@@ -201,6 +355,35 @@ fn collect_symbols(
         }
     }
     symbols
+}
+
+fn compile_symbols(
+    document: &ContractDocument,
+    symbols: &BTreeMap<String, crate::ast::Span>,
+) -> Vec<ResolvedSymbol> {
+    if document.metadata.symbols_explicit || !document.metadata.symbols.is_empty() {
+        let mut resolved: Vec<_> = document
+            .metadata
+            .symbols
+            .iter()
+            .map(|symbol| ResolvedSymbol {
+                id: symbol.id.clone(),
+                name: symbol.name.clone(),
+                kind: symbol.kind.clone(),
+            })
+            .collect();
+        resolved.sort_by(|left, right| left.id.cmp(&right.id));
+        return resolved;
+    }
+
+    symbols
+        .keys()
+        .map(|name| ResolvedSymbol {
+            id: format!("area:{name}"),
+            name: name.clone(),
+            kind: "feature-area".to_owned(),
+        })
+        .collect()
 }
 
 fn compile_dependency_rules(

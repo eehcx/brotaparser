@@ -84,6 +84,73 @@ contract metadata-test {
 }
 
 #[test]
+fn compiles_typed_contract_metadata() {
+    let source = r#"
+contract metadata-compile {
+  language "0.1"
+  profile angular version "0.1"
+  root "src"
+  schema "custom-contract@1"
+  dimension decomposition "bounded-contexts"
+  dimension internal-structure "ports-and-adapters"
+  dimension dependency-policy "allowlist"
+  dimension visibility "public-api"
+  symbols explicit
+  symbol "feature:orders" "orders" "bounded-context"
+  forbidden-paths present
+  rules explicit
+  rule "policy.orders" product-decision human-review ["ADR-1", "team-policy"]
+}
+"#;
+
+    let contract = compile_source(source).expect("metadata source should compile");
+
+    assert_eq!(contract.version.schema, "custom-contract@1");
+    assert_eq!(contract.dimensions.decomposition, "bounded-contexts");
+    assert_eq!(contract.dimensions.internal_structure, "ports-and-adapters");
+    assert_eq!(contract.dimensions.dependency_policy, "allowlist");
+    assert_eq!(contract.dimensions.visibility, "public-api");
+    assert_eq!(contract.symbols.len(), 1);
+    assert_eq!(contract.symbols[0].id, "feature:orders");
+    assert_eq!(contract.symbols[0].name, "orders");
+    assert_eq!(contract.symbols[0].kind, "bounded-context");
+    assert_eq!(contract.forbidden_paths, Some(Vec::new()));
+    assert_eq!(contract.rules.len(), 1);
+    assert_eq!(contract.rules[0].id, "policy.orders");
+    assert_eq!(
+        contract.rules[0].origin,
+        brotaparser::RuleOrigin::ProductDecision
+    );
+    assert_eq!(contract.rules[0].sources, ["ADR-1", "team-policy"]);
+    assert_eq!(
+        contract.rules[0].verification,
+        brotaparser::VerificationLevel::HumanReview
+    );
+}
+
+#[test]
+fn rejects_forbidden_paths_marked_absent_when_declared() {
+    let source = r#"
+contract invalid-metadata {
+  language "0.1"
+  profile angular version "0.1"
+  root "src"
+  forbid path "src/private"
+  forbidden-paths absent
+}
+"#;
+
+    let error = compile_source(source).expect_err("contradictory metadata should be rejected");
+
+    assert!(
+        error
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "BRT-CON-003")
+    );
+}
+
+#[test]
 fn malformed_syntax_returns_a_stable_syntax_diagnostic() {
     let error = parse("contract admin-panel { language \"0.1\"").expect_err("source is malformed");
 
