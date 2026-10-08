@@ -695,6 +695,33 @@ fn renders_a_derived_contract_that_can_be_parsed_again() {
 }
 
 #[test]
+fn renders_and_round_trips_explicit_contract_metadata() {
+    let source = r#"
+contract render-metadata {
+  language "0.1"
+  profile angular version "0.1"
+  root "src"
+  schema "custom-contract@1"
+  dimension decomposition "bounded-contexts"
+  dimension internal-structure "ports-and-adapters"
+  dimension dependency-policy "allowlist"
+  dimension visibility "public-api"
+  symbols explicit
+  symbol "feature:orders" "orders" "bounded-context"
+  forbidden-paths present
+  rules explicit
+  rule "policy.orders" product-decision human-review ["ADR-1", "team-policy"]
+}
+"#;
+    let contract = compile_source(source).expect("source metadata should compile");
+
+    let rendered = render_contract_source(&contract);
+    let round_tripped = compile_source(&rendered).expect("rendered metadata should compile");
+
+    assert_eq!(round_tripped, contract);
+}
+
+#[test]
 fn normalizes_snapshot_collections_deterministically() {
     let mut snapshot = ProjectSnapshot::new("src");
     snapshot.files = vec![

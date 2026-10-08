@@ -191,6 +191,7 @@ pub fn render_contract_source(contract: &ArchitectureContract) -> String {
     let mut lines = vec![
         format!("contract {} {{", contract.name),
         format!("  language \"{}\"", contract.version.language),
+        format!("  schema \"{}\"", quote(&contract.version.schema)),
         format!(
             "  profile {} version \"{}\"",
             contract.profile.name, contract.profile.version
@@ -198,13 +199,32 @@ pub fn render_contract_source(contract: &ArchitectureContract) -> String {
         format!("  root \"{}\"", quote(&contract.root)),
     ];
 
-    let mut areas: Vec<_> = contract
-        .symbols
-        .iter()
-        .map(|symbol| symbol.name.clone())
-        .collect();
-    areas.sort();
-    lines.extend(areas.into_iter().map(|area| format!("  area {area}")));
+    for (name, value) in [
+        ("decomposition", contract.dimensions.decomposition.as_str()),
+        (
+            "internal-structure",
+            contract.dimensions.internal_structure.as_str(),
+        ),
+        (
+            "dependency-policy",
+            contract.dimensions.dependency_policy.as_str(),
+        ),
+        ("visibility", contract.dimensions.visibility.as_str()),
+    ] {
+        lines.push(format!("  dimension {name} \"{}\"", quote(value)));
+    }
+
+    lines.push("  symbols explicit".to_owned());
+    let mut symbols = contract.symbols.clone();
+    symbols.sort_by(|left, right| left.id.cmp(&right.id));
+    lines.extend(symbols.into_iter().map(|symbol| {
+        format!(
+            "  symbol \"{}\" \"{}\" \"{}\"",
+            quote(&symbol.id),
+            quote(&symbol.name),
+            quote(&symbol.kind)
+        )
+    }));
 
     let mut dependencies = contract.dependency_rules.clone();
     dependencies.sort_by(|left, right| {
@@ -235,11 +255,38 @@ pub fn render_contract_source(contract: &ArchitectureContract) -> String {
 
     let mut forbidden_paths = contract.forbidden_paths.clone().unwrap_or_default();
     forbidden_paths.sort();
+    lines.push(format!(
+        "  forbidden-paths {}",
+        if contract.forbidden_paths.is_some() {
+            "present"
+        } else {
+            "absent"
+        }
+    ));
     lines.extend(
         forbidden_paths
             .into_iter()
             .map(|pattern| format!("  forbid path \"{}\"", quote(&pattern))),
     );
+
+    lines.push("  rules explicit".to_owned());
+    let mut rules = contract.rules.clone();
+    rules.sort_by(|left, right| left.id.cmp(&right.id));
+    lines.extend(rules.into_iter().map(|rule| {
+        let sources = rule
+            .sources
+            .iter()
+            .map(|source| format!("\"{}\"", quote(source)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!(
+            "  rule \"{}\" {} {} [{}]",
+            quote(&rule.id),
+            rule_origin_name(rule.origin),
+            verification_level_name(rule.verification),
+            sources
+        )
+    }));
 
     let mut artifacts = contract.required_artifacts.clone();
     artifacts.sort_by(|left, right| {
@@ -538,6 +585,23 @@ fn artifact_kind_name(kind: RequiredArtifactKind) -> &'static str {
         RequiredArtifactKind::Export => "export",
         RequiredArtifactKind::Declaration => "declaration",
         RequiredArtifactKind::Configuration => "configuration",
+    }
+}
+
+fn rule_origin_name(origin: RuleOrigin) -> &'static str {
+    match origin {
+        RuleOrigin::CanonicalSource => "canonical-source",
+        RuleOrigin::FrontendAdaptation => "frontend-adaptation",
+        RuleOrigin::FrameworkConvention => "framework-convention",
+        RuleOrigin::ProductDecision => "product-decision",
+    }
+}
+
+fn verification_level_name(level: VerificationLevel) -> &'static str {
+    match level {
+        VerificationLevel::Deterministic => "deterministic",
+        VerificationLevel::Heuristic => "heuristic",
+        VerificationLevel::HumanReview => "human-review",
     }
 }
 
