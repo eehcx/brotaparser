@@ -91,6 +91,41 @@ pub struct RequiredArtifactDecl {
     pub span: Span,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ContractMetadata {
+    pub schemas: Vec<VersionDecl>,
+    pub dimensions: Vec<DimensionDecl>,
+    pub symbols: Vec<SymbolDecl>,
+    pub symbols_explicit: bool,
+    pub rules: Vec<RuleMetadataDecl>,
+    pub rules_explicit: bool,
+    pub forbidden_paths_present: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DimensionDecl {
+    pub name: String,
+    pub value: String,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SymbolDecl {
+    pub id: String,
+    pub name: String,
+    pub kind: String,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuleMetadataDecl {
+    pub id: String,
+    pub origin: String,
+    pub verification: String,
+    pub sources: Vec<String>,
+    pub span: Span,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContractDocument {
     pub name: String,
@@ -104,4 +139,5 @@ pub struct ContractDocument {
     pub paths: Vec<PathRuleDecl>,
     pub forbidden_paths: Vec<ForbiddenPathDecl>,
     pub required_artifacts: Vec<RequiredArtifactDecl>,
+    pub metadata: ContractMetadata,
 }

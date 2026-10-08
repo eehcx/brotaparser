@@ -3,9 +3,10 @@ use pest::iterators::Pair;
 use pest_derive::Parser;
 
 use crate::ast::{
-    AreaDecl, ContractDocument, DependencyRuleDecl, DependencyRuleKind, ExceptionDecl,
-    ForbiddenPathDecl, PathRuleDecl, ProfileDecl, RequiredArtifactDecl, RequiredArtifactKind,
-    RootDecl, Span, VersionDecl,
+    AreaDecl, ContractDocument, ContractMetadata, DependencyRuleDecl, DependencyRuleKind,
+    DimensionDecl, ExceptionDecl, ForbiddenPathDecl, PathRuleDecl, ProfileDecl,
+    RequiredArtifactDecl, RequiredArtifactKind, RootDecl, RuleMetadataDecl, Span, SymbolDecl,
+    VersionDecl,
 };
 use crate::diagnostics::{Diagnostic, DiagnosticCode, Diagnostics, Location};
 
@@ -43,6 +44,7 @@ pub fn parse(source: &str) -> Result<ContractDocument, Diagnostics> {
         paths: Vec::new(),
         forbidden_paths: Vec::new(),
         required_artifacts: Vec::new(),
+        metadata: ContractMetadata::default(),
     };
 
     let mut statements = contract.into_inner();
@@ -54,9 +56,16 @@ pub fn parse(source: &str) -> Result<ContractDocument, Diagnostics> {
     for statement in statements {
         match statement.as_rule() {
             Rule::language_decl => document.languages.push(parse_language(&statement)),
+            Rule::schema_decl => document.metadata.schemas.push(parse_language(&statement)),
             Rule::profile_decl => document.profiles.push(parse_profile(&statement)),
             Rule::root_decl => document.roots.push(parse_root(&statement)),
             Rule::area_decl => document.areas.push(parse_area(&statement)),
+            Rule::dimension_decl => document
+                .metadata
+                .dimensions
+                .push(parse_dimension(&statement)),
+            Rule::symbols_explicit_decl => document.metadata.symbols_explicit = true,
+            Rule::symbol_decl => document.metadata.symbols.push(parse_symbol(&statement)),
             Rule::dependency_decl => document.dependencies.push(parse_dependency(&statement)),
             Rule::exception_decl => document.exceptions.push(parse_exception(&statement)),
             Rule::path_decl => document.paths.push(parse_path(&statement)),
@@ -64,6 +73,12 @@ pub fn parse(source: &str) -> Result<ContractDocument, Diagnostics> {
                 .forbidden_paths
                 .push(parse_forbidden_path(&statement)),
             Rule::artifact_decl => document.required_artifacts.push(parse_artifact(&statement)),
+            Rule::forbidden_paths_state_decl => {
+                document.metadata.forbidden_paths_present =
+                    Some(statement.as_str().trim_end().ends_with("present"));
+            }
+            Rule::rules_explicit_decl => document.metadata.rules_explicit = true,
+            Rule::rule_decl => document.metadata.rules.push(parse_rule(&statement)),
             _ => unreachable!("statements are silent and expose declaration rules"),
         }
     }
@@ -102,6 +117,30 @@ fn parse_area(pair: &Pair<'_, Rule>) -> AreaDecl {
     let name = pair.clone().into_inner().next().expect("area name");
     AreaDecl {
         name: name.as_str().to_owned(),
+        span: span(pair),
+    }
+}
+
+fn parse_dimension(pair: &Pair<'_, Rule>) -> DimensionDecl {
+    let mut inner = pair.clone().into_inner();
+    let name = inner.next().expect("dimension name");
+    let value = inner.next().expect("dimension value");
+    DimensionDecl {
+        name: name.as_str().to_owned(),
+        value: unquote(value.as_str()),
+        span: span(pair),
+    }
+}
+
+fn parse_symbol(pair: &Pair<'_, Rule>) -> SymbolDecl {
+    let mut inner = pair.clone().into_inner();
+    let id = inner.next().expect("symbol id");
+    let name = inner.next().expect("symbol name");
+    let kind = inner.next().expect("symbol kind");
+    SymbolDecl {
+        id: unquote(id.as_str()),
+        name: unquote(name.as_str()),
+        kind: unquote(kind.as_str()),
         span: span(pair),
     }
 }
@@ -203,6 +242,26 @@ fn parse_artifact(pair: &Pair<'_, Rule>) -> RequiredArtifactDecl {
         kind,
         path: unquote(path.as_str()),
         scope,
+        span: span(pair),
+    }
+}
+
+fn parse_rule(pair: &Pair<'_, Rule>) -> RuleMetadataDecl {
+    let mut inner = pair.clone().into_inner();
+    let id = inner.next().expect("rule id");
+    let origin = inner.next().expect("rule origin");
+    let verification = inner.next().expect("rule verification level");
+    let sources = inner
+        .next()
+        .expect("rule sources")
+        .into_inner()
+        .map(|source| unquote(source.as_str()))
+        .collect();
+    RuleMetadataDecl {
+        id: unquote(id.as_str()),
+        origin: origin.as_str().to_owned(),
+        verification: verification.as_str().to_owned(),
+        sources,
         span: span(pair),
     }
 }

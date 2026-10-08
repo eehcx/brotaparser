@@ -276,7 +276,7 @@ fn owner_for_path(rules: &[PathRule], path: &str) -> OwnerLookup {
         return OwnerLookup::None;
     }
 
-    matches.sort_by(|left, right| right.0.cmp(&left.0));
+    matches.sort_by_key(|entry| std::cmp::Reverse(entry.0));
     let best_specificity = matches[0].0;
     let owners = matches
         .iter()
